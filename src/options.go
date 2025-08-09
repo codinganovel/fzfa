@@ -4,11 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"unicode"
 
+	"github.com/codinganovel/autocd-go"
 	"github.com/junegunn/fzf/src/algo"
 	"github.com/junegunn/fzf/src/tui"
 	"github.com/junegunn/fzf/src/util"
@@ -641,6 +643,7 @@ type Options struct {
 	WalkerSkip        []string
 	Version           bool
 	Help              bool
+	AutoCD            bool
 	CPUProfile        string
 	MEMProfile        string
 	BlockProfile      string
@@ -2407,6 +2410,8 @@ func parseOptions(index *int, opts *Options, allArgs []string) error {
 		case "-h", "--help":
 			clearExitingOpts()
 			opts.Help = true
+		case "-a", "--autocd":
+			opts.AutoCD = true
 		case "--version":
 			clearExitingOpts()
 			opts.Version = true
@@ -3597,6 +3602,21 @@ func ParseOptions(useDefaults bool, args []string) (*Options, error) {
 	// 5. Final validation of merged options
 	if err := validateOptions(opts); err != nil {
 		return nil, err
+	}
+
+	// 6. Set up AutoCD printer if enabled
+	if opts.AutoCD {
+		opts.Printer = func(str string) {
+			targetDir := str
+			// If it's a file, use its parent directory
+			if info, err := os.Stat(str); err == nil && !info.IsDir() {
+				targetDir = filepath.Dir(str)
+			}
+			// Use autocd - never returns on success, exits on failure
+			if err := autocd.ExitWithDirectory(targetDir); err != nil {
+				os.Exit(1)
+			}
+		}
 	}
 
 	return opts, nil
